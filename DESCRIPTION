@@ -1,0 +1,24 @@
+Package: SLIP
+Type: Package
+Title: Change Testing for Large-Scale Datastreams with FDR Control
+Version: 0.1.0
+Author: Mengtao WEN
+Maintainer: The package maintainer <wenmengtao@pku.edu.cn>
+Description: A data-driven procedure for identifying abnormal datastreams each 
+  of which occurs at least one change while controling false discoveries refer to
+  that an identified datastream, among large parallel datastreams, that actually
+  occurs no changes. 
+License: GPL-2
+Depends: R (>= 3.6.0)
+Imports:
+    glmnet,
+    POET,
+    CovTools,
+    simex,
+    knitr,
+    rmarkdown
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Suggests: markdown
+VignetteBuilder: knitr

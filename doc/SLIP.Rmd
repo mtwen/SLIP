@@ -1,0 +1,192 @@
+---
+title: "Using SLIP for activation discovery in large-scale data streams"
+author: "Mengtao Wen"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using SLIP for activation discovery in  large-scale data streams}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+Data arriving in “streams” from a large number of sources is ubiquitous, where the underlying distribution of each data stream may change over the course of data acquisition due to external stimuli or internal evolution. 
+
+Functional magnetic resonance imaging (fMRI) is a good example to illustrate. 
+The blood oxygen level-dependent (BOLD) response, a surrogate measure of brain activity, is activated when suffering from an externally controlled stimulus. 
+The data comprises a series of magnetic resonance brain images, that is the BOLD responses over time from a large number of uniformly spaced volume elements (or voxels).
+A data stream can be referred to as a voxel.
+Our primary goal is to discover those activated data streams.
+
+It is worth noting two obvious characteristics existing in large-scale data streams. One is that not all data streams are activated in a specific scene. The other is that the data streams in activation may react at different times during the experiment.
+
+A natural statistical approach is to use change-point or process control theory. Some works (see, for example, @lindquist2007) focus on the modeling of the fMRI data, but litter has been discussed on the inferential side, that is the *uncertainty* of detected voxels in activation. 
+This is amount to perform streamwise hypothesis testing of whether a change in the BOLD response occurs during the course of an fMRI experiment, and to threshold the resulting *activation map* of test statistics to meet certain error rate control.
+An appealing statistical notion of the error rate is the false discovery rate (@Benjamini1995, FDR), that is, the expected proportion of falsely rejected hypotheses.
+
+In this package, we implement the proposed simple yet effective method (see @WenWangZouWang2021) for discovering activated data streams with the FDR being controlled at a prescribed level. The spatial dependence and unknown asynchronous change patterns are taken into consideration. 
+The proposed method is called SLIP, which comprises a sequence of steps by, as its acronym suggests, $\underline{\rm S}$pliting the data into two parts, $\underline{\rm L}$ocating streamwise activation times based on one sample, $\underline{\rm I}$ncorporating spatial dependence among data streams and $\underline{\rm P}$ooling summary statistics on both separated samples, respectively.
+This package has the same name as the proposed method.
+
+## The SLIP package
+
+In this ${\tt SLIP}$ package, six procedures are provided including `SLIP.lasso()`, `SLIP.thresh.d()`, `SLIP.thresh.c()`, `SLIP.indep()` from the SLIP method and `BH.asymp()`, `BH.simul()` from the BH method. 
+We also provide a sample of fMRI data in the ${\tt SLIP}$ package and we illustrate the usage below.
+
+### An example
+```{r}
+# load package: SLIP
+library(SLIP)
+set.seed(1234)
+```
+Two data generators named by `SLIP.scp.generator()` and `SLIP.mcp.generator()`, are provied for generating data streams with possible single change-point (SCP) and multiple change-points (MCP), respectively. More usages of the two functions can be found by `?SLIP.scp.generator` and `?SLIP.mcp.generator`.
+
+First, the data with at most one change-point in each data stream is generated.
+```{r}
+  N = 90
+  p = 200
+  data = SLIP.scp.generator(N, p, dist = "t", param = 5)
+```
+
+Then, the six procedures are applied to the data, with FDR nominal level at 0.2:
+```{r}
+  alpha = 0.2
+  
+  # SLIP-thresh-C
+  sig.thrsh.c = SLIP.thresh.c(data$dat, alpha)$sig
+  
+  # SLIP-thresh-D
+  sig.thrsh.d = SLIP.thresh.d(data$dat, alpha)$sig
+  
+  # SLIP-lasso
+  sig.lasso = SLIP.lasso(data$dat, alpha)$sig
+  
+  # SLIP-indep
+  sig.indep = SLIP.indep(data$dat, alpha)$sig
+  
+  # BH-simul
+  ECDF = bootstrap.cusum(N)
+  sig.simul = BH.simul(data$dat, alpha, ECDF)$sig
+
+  # BH-asymp
+  sig.asymp = BH.asymp(data$dat, alpha)$sig
+```
+
+The indices of discoveries are returned by these procedures. 
+We calculate the false discovery proportion (FDP) and the true discovery proportion (TDP) defined below:
+$$
+  {\rm FDP} = |\mathcal{S}\setminus\mathcal{A}|/|\mathcal{S}|\hspace{1cm} {\rm TDP} = |\mathcal{S}\cap\mathcal{A}|/|\mathcal{A}|,
+$$
+where $\mathcal{S}$ and $\mathcal{A}$ are the discovery set and the true set containing data streams with changes, respectively.
+We only present the FDP and TDP for fast compilation. The FDR (the expectation of FDP) and power (the expectation of TDP) can be approximated by large repetitions.
+
+```{r}
+  # false discovery proportion (FDP) and true discovery proportion (TDP)
+  sigList = list(sig.thrsh.c, sig.thrsh.d, sig.lasso, sig.indep, sig.simul, sig.asymp)
+  FDP = sapply(sigList, function(sig){ length(setdiff(sig, data$index))/max(1, length(sig)) })
+  TDP = sapply(sigList, function(sig){ length(intersect(sig, data$index))/length(data$index) })
+  Proceudre = c("SLIP.thresh.c", "SLIP.thresh.d", "SLIP.lasso", "SLIP.indep", "BH.simul", "BH.asymp")
+  res = data.frame(Proceudre, FDP = round(FDP, 4), TDP = round(TDP, 4))
+  knitr::kable(t(res))
+```
+
+### fMRI data
+
+Here we only apply the `SLIP.thresh.d()` to the fMRI data for illustrating the usage of the embedded data set.
+
+At first, we read the data:
+```{r}
+  library(SLIP)
+  data = fmri.data
+  (dimA = c(data$dimx, data$dimy, data$dimz))
+  
+  # load the ROI data used in the paper
+  (dim(data$dat))
+  dat = apply(data$dat[-c(1:5, 356:360), ], 2, function(X){ colMeans(matrix(X, nrow = 10)) })
+  (dim(dat))
+```
+
+We define the FDR nominal level at 0.2:
+```{r}
+  alpha = 0.2
+  sigInfo = SLIP.thresh.d(dat, alpha, estMthd = "POET", outputW = TRUE, outputCP = TRUE)
+  
+  # The threshold L 
+  (sigInfo$L)
+  
+  # The discovery set
+  (names(sigInfo$sig))
+  
+  # The estimated FDP
+  (sigInfo$estFDP)
+  
+  # The estimated change-point location (ratio)
+  (sigInfo$cps)
+  
+  # The W-statistics
+  (sigInfo$W)
+```
+
+
+---
+references:
+- type: article-journal
+  id: lindquist2007
+  author:
+  - family: Lindquist
+    given: Martin A.
+  - family: Waugh
+    given: Christian
+  - family: Wager
+    given: Tor D.
+  title: 'Modeling state-related fMRI activity using change-point     theory'
+  container-title: NeuroImage
+  issued:
+    date-parts:
+    - - 2007
+  volume: 35
+  issue: 3
+  page: 1125-1141
+  DOI: 10.1016/j.neuroimage.2007.01.004
+  
+- type: article-journal
+  id: Benjamini1995
+  author:
+  - family: Benjamini
+    given: Yoav
+  - family: Hochberg
+    given: Yosef 
+  title: 'Controlling the false discovery rate: A practical and        powerful approach to multiple testing'
+  container-title: 'Journal of the Royal Statistical Society:         Series B (Methodological)'
+  issued:
+    date-parts:
+    - - 1995
+  volume: 57
+  issue: 1
+  page: 289-300
+  DOI: 10.1111/j.2517-6161.1995.tb02031.x
+
+- type: article-journal
+  id: WenWangZouWang2021
+  author:
+  - family: Wen
+    given: Mengtao
+  - family: Wang
+    given: Guanghui
+  - family: Zou
+    given: Changliang
+  - family: Wang
+    given: Zhaojun
+  title: 'Activation discovery with FDR control: Application to        fMRI data'
+  issued:
+    date-parts:
+    - - 2021
+...

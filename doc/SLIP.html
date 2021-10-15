@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Mengtao Wen" />
+
+<meta name="date" content="2021-10-15" />
+
+<title>Using SLIP for activation discovery in large-scale data streams</title>
+
+<script>// Hide empty <a> tag within highlighted CodeBlock for screen reader accessibility (see https://github.com/jgm/pandoc/issues/6352#issuecomment-626106786) -->
+// v0.0.1
+// Written by JooYoung Seo (jooyoung@psu.edu) and Atsushi Yasumoto on June 1st, 2020.
+
+document.addEventListener('DOMContentLoaded', function() {
+  const codeList = document.getElementsByClassName("sourceCode");
+  for (var i = 0; i < codeList.length; i++) {
+    var linkList = codeList[i].getElementsByTagName('a');
+    for (var j = 0; j < linkList.length; j++) {
+      if (linkList[j].innerHTML === "") {
+        linkList[j].setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+code.sourceCode > span { display: inline-block; line-height: 1.25; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Using SLIP for activation discovery in large-scale data streams</h1>
+<h4 class="author">Mengtao Wen</h4>
+<h4 class="date">2021-10-15</h4>
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>Data arriving in “streams” from a large number of sources is ubiquitous, where the underlying distribution of each data stream may change over the course of data acquisition due to external stimuli or internal evolution.</p>
+<p>Functional magnetic resonance imaging (fMRI) is a good example to illustrate. The blood oxygen level-dependent (BOLD) response, a surrogate measure of brain activity, is activated when suffering from an externally controlled stimulus. The data comprises a series of magnetic resonance brain images, that is the BOLD responses over time from a large number of uniformly spaced volume elements (or voxels). A data stream can be referred to as a voxel. Our primary goal is to discover those activated data streams.</p>
+<p>It is worth noting two obvious characteristics existing in large-scale data streams. One is that not all data streams are activated in a specific scene. The other is that the data streams in activation may react at different times during the experiment.</p>
+<p>A natural statistical approach is to use change-point or process control theory. Some works (see, for example, <span class="citation">Lindquist, Waugh, and Wager (2007)</span>) focus on the modeling of the fMRI data, but litter has been discussed on the inferential side, that is the <em>uncertainty</em> of detected voxels in activation. This is amount to perform streamwise hypothesis testing of whether a change in the BOLD response occurs during the course of an fMRI experiment, and to threshold the resulting <em>activation map</em> of test statistics to meet certain error rate control. An appealing statistical notion of the error rate is the false discovery rate (<span class="citation">Benjamini and Hochberg (1995)</span>, FDR), that is, the expected proportion of falsely rejected hypotheses.</p>
+<p>In this package, we implement the proposed simple yet effective method (see <span class="citation">Wen et al. (2021)</span>) for discovering activated data streams with the FDR being controlled at a prescribed level. The spatial dependence and unknown asynchronous change patterns are taken into consideration. The proposed method is called SLIP, which comprises a sequence of steps by, as its acronym suggests, <span class="math inline">\(\underline{\rm S}\)</span>pliting the data into two parts, <span class="math inline">\(\underline{\rm L}\)</span>ocating streamwise activation times based on one sample, <span class="math inline">\(\underline{\rm I}\)</span>ncorporating spatial dependence among data streams and <span class="math inline">\(\underline{\rm P}\)</span>ooling summary statistics on both separated samples, respectively. This package has the same name as the proposed method.</p>
+</div>
+<div id="the-slip-package" class="section level2">
+<h2>The SLIP package</h2>
+<p>In this <span class="math inline">\({\tt SLIP}\)</span> package, six procedures are provided including <code>SLIP.lasso()</code>, <code>SLIP.thresh.d()</code>, <code>SLIP.thresh.c()</code>, <code>SLIP.indep()</code> from the SLIP method and <code>BH.asymp()</code>, <code>BH.simul()</code> from the BH method. We also provide a sample of fMRI data in the <span class="math inline">\({\tt SLIP}\)</span> package and we illustrate the usage below.</p>
+<div id="an-example" class="section level3">
+<h3>An example</h3>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="co"># load package: SLIP</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="kw">library</span>(SLIP)</span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="kw">set.seed</span>(<span class="dv">1234</span>)</span></code></pre></div>
+<p>Two data generators named by <code>SLIP.scp.generator()</code> and <code>SLIP.mcp.generator()</code>, are provied for generating data streams with possible single change-point (SCP) and multiple change-points (MCP), respectively. More usages of the two functions can be found by <code>?SLIP.scp.generator</code> and <code>?SLIP.mcp.generator</code>.</p>
+<p>First, the data with at most one change-point in each data stream is generated.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>  N =<span class="st"> </span><span class="dv">90</span></span>
+<span id="cb2-2"><a href="#cb2-2"></a>  p =<span class="st"> </span><span class="dv">200</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a>  data =<span class="st"> </span><span class="kw">SLIP.scp.generator</span>(N, p, <span class="dt">dist =</span> <span class="st">&quot;t&quot;</span>, <span class="dt">param =</span> <span class="dv">5</span>)</span></code></pre></div>
+<p>Then, the six procedures are applied to the data, with FDR nominal level at 0.2:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>  alpha =<span class="st"> </span><span class="fl">0.2</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a>  </span>
+<span id="cb3-3"><a href="#cb3-3"></a>  <span class="co"># SLIP-thresh-C</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a>  sig.thrsh.c =<span class="st"> </span><span class="kw">SLIP.thresh.c</span>(data<span class="op">$</span>dat, alpha)<span class="op">$</span>sig</span>
+<span id="cb3-5"><a href="#cb3-5"></a>  </span>
+<span id="cb3-6"><a href="#cb3-6"></a>  <span class="co"># SLIP-thresh-D</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a>  sig.thrsh.d =<span class="st"> </span><span class="kw">SLIP.thresh.d</span>(data<span class="op">$</span>dat, alpha)<span class="op">$</span>sig</span>
+<span id="cb3-8"><a href="#cb3-8"></a>  </span>
+<span id="cb3-9"><a href="#cb3-9"></a>  <span class="co"># SLIP-lasso</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a>  sig.lasso =<span class="st"> </span><span class="kw">SLIP.lasso</span>(data<span class="op">$</span>dat, alpha)<span class="op">$</span>sig</span>
+<span id="cb3-11"><a href="#cb3-11"></a>  </span>
+<span id="cb3-12"><a href="#cb3-12"></a>  <span class="co"># SLIP-indep</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a>  sig.indep =<span class="st"> </span><span class="kw">SLIP.indep</span>(data<span class="op">$</span>dat, alpha)<span class="op">$</span>sig</span>
+<span id="cb3-14"><a href="#cb3-14"></a>  </span>
+<span id="cb3-15"><a href="#cb3-15"></a>  <span class="co"># BH-simul</span></span>
+<span id="cb3-16"><a href="#cb3-16"></a>  ECDF =<span class="st"> </span><span class="kw">bootstrap.cusum</span>(N)</span>
+<span id="cb3-17"><a href="#cb3-17"></a>  sig.simul =<span class="st"> </span><span class="kw">BH.simul</span>(data<span class="op">$</span>dat, alpha, ECDF)<span class="op">$</span>sig</span>
+<span id="cb3-18"><a href="#cb3-18"></a></span>
+<span id="cb3-19"><a href="#cb3-19"></a>  <span class="co"># BH-asymp</span></span>
+<span id="cb3-20"><a href="#cb3-20"></a>  sig.asymp =<span class="st"> </span><span class="kw">BH.asymp</span>(data<span class="op">$</span>dat, alpha)<span class="op">$</span>sig</span></code></pre></div>
+<p>The indices of discoveries are returned by these procedures. We calculate the false discovery proportion (FDP) and the true discovery proportion (TDP) defined below: <span class="math display">\[
+  {\rm FDP} = |\mathcal{S}\setminus\mathcal{A}|/|\mathcal{S}|\hspace{1cm} {\rm TDP} = |\mathcal{S}\cap\mathcal{A}|/|\mathcal{A}|,
+\]</span> where <span class="math inline">\(\mathcal{S}\)</span> and <span class="math inline">\(\mathcal{A}\)</span> are the discovery set and the true set containing data streams with changes, respectively. We only present the FDP and TDP for fast compilation. The FDR (the expectation of FDP) and power (the expectation of TDP) can be approximated by large repetitions.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>  <span class="co"># false discovery proportion (FDP) and true discovery proportion (TDP)</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a>  sigList =<span class="st"> </span><span class="kw">list</span>(sig.thrsh.c, sig.thrsh.d, sig.lasso, sig.indep, sig.simul, sig.asymp)</span>
+<span id="cb4-3"><a href="#cb4-3"></a>  FDP =<span class="st"> </span><span class="kw">sapply</span>(sigList, <span class="cf">function</span>(sig){ <span class="kw">length</span>(<span class="kw">setdiff</span>(sig, data<span class="op">$</span>index))<span class="op">/</span><span class="kw">max</span>(<span class="dv">1</span>, <span class="kw">length</span>(sig)) })</span>
+<span id="cb4-4"><a href="#cb4-4"></a>  TDP =<span class="st"> </span><span class="kw">sapply</span>(sigList, <span class="cf">function</span>(sig){ <span class="kw">length</span>(<span class="kw">intersect</span>(sig, data<span class="op">$</span>index))<span class="op">/</span><span class="kw">length</span>(data<span class="op">$</span>index) })</span>
+<span id="cb4-5"><a href="#cb4-5"></a>  Proceudre =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;SLIP.thresh.c&quot;</span>, <span class="st">&quot;SLIP.thresh.d&quot;</span>, <span class="st">&quot;SLIP.lasso&quot;</span>, <span class="st">&quot;SLIP.indep&quot;</span>, <span class="st">&quot;BH.simul&quot;</span>, <span class="st">&quot;BH.asymp&quot;</span>)</span>
+<span id="cb4-6"><a href="#cb4-6"></a>  res =<span class="st"> </span><span class="kw">data.frame</span>(Proceudre, <span class="dt">FDP =</span> <span class="kw">round</span>(FDP, <span class="dv">4</span>), <span class="dt">TDP =</span> <span class="kw">round</span>(TDP, <span class="dv">4</span>))</span>
+<span id="cb4-7"><a href="#cb4-7"></a>  knitr<span class="op">::</span><span class="kw">kable</span>(<span class="kw">t</span>(res))</span></code></pre></div>
+<table>
+<tbody>
+<tr class="odd">
+<td align="left">Proceudre</td>
+<td align="left">SLIP.thresh.c</td>
+<td align="left">SLIP.thresh.d</td>
+<td align="left">SLIP.lasso</td>
+<td align="left">SLIP.indep</td>
+<td align="left">BH.simul</td>
+<td align="left">BH.asymp</td>
+</tr>
+<tr class="even">
+<td align="left">FDP</td>
+<td align="left">0.2500</td>
+<td align="left">0.2000</td>
+<td align="left">0.2258</td>
+<td align="left">0.2424</td>
+<td align="left">0.3721</td>
+<td align="left">0.1500</td>
+</tr>
+<tr class="odd">
+<td align="left">TDP</td>
+<td align="left">0.8000</td>
+<td align="left">0.8000</td>
+<td align="left">0.8000</td>
+<td align="left">0.8333</td>
+<td align="left">0.9000</td>
+<td align="left">0.5667</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="fmri-data" class="section level3">
+<h3>fMRI data</h3>
+<p>Here we only apply the <code>SLIP.thresh.d()</code> to the fMRI data for illustrating the usage of the embedded data set.</p>
+<p>At first, we read the data:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a>  <span class="kw">library</span>(SLIP)</span>
+<span id="cb5-2"><a href="#cb5-2"></a>  data =<span class="st"> </span>fmri.data</span>
+<span id="cb5-3"><a href="#cb5-3"></a>  (<span class="dt">dimA =</span> <span class="kw">c</span>(data<span class="op">$</span>dimx, data<span class="op">$</span>dimy, data<span class="op">$</span>dimz))</span>
+<span id="cb5-4"><a href="#cb5-4"></a><span class="co">#&gt; [1] 51 61 23</span></span>
+<span id="cb5-5"><a href="#cb5-5"></a>  </span>
+<span id="cb5-6"><a href="#cb5-6"></a>  <span class="co"># load the ROI data used in the paper</span></span>
+<span id="cb5-7"><a href="#cb5-7"></a>  (<span class="kw">dim</span>(data<span class="op">$</span>dat))</span>
+<span id="cb5-8"><a href="#cb5-8"></a><span class="co">#&gt; [1] 360 264</span></span>
+<span id="cb5-9"><a href="#cb5-9"></a>  dat =<span class="st"> </span><span class="kw">apply</span>(data<span class="op">$</span>dat[<span class="op">-</span><span class="kw">c</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>, <span class="dv">356</span><span class="op">:</span><span class="dv">360</span>), ], <span class="dv">2</span>, <span class="cf">function</span>(X){ <span class="kw">colMeans</span>(<span class="kw">matrix</span>(X, <span class="dt">nrow =</span> <span class="dv">10</span>)) })</span>
+<span id="cb5-10"><a href="#cb5-10"></a>  (<span class="kw">dim</span>(dat))</span>
+<span id="cb5-11"><a href="#cb5-11"></a><span class="co">#&gt; [1]  35 264</span></span></code></pre></div>
+<p>We define the FDR nominal level at 0.2:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>  alpha =<span class="st"> </span><span class="fl">0.2</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a>  sigInfo =<span class="st"> </span><span class="kw">SLIP.thresh.d</span>(dat, alpha, <span class="dt">estMthd =</span> <span class="st">&quot;POET&quot;</span>, <span class="dt">outputW =</span> <span class="ot">TRUE</span>, <span class="dt">outputCP =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb6-3"><a href="#cb6-3"></a>  </span>
+<span id="cb6-4"><a href="#cb6-4"></a>  <span class="co"># The threshold L </span></span>
+<span id="cb6-5"><a href="#cb6-5"></a>  (sigInfo<span class="op">$</span>L)</span>
+<span id="cb6-6"><a href="#cb6-6"></a><span class="co">#&gt; [1] 5.030522</span></span>
+<span id="cb6-7"><a href="#cb6-7"></a>  </span>
+<span id="cb6-8"><a href="#cb6-8"></a>  <span class="co"># The discovery set</span></span>
+<span id="cb6-9"><a href="#cb6-9"></a>  (<span class="kw">names</span>(sigInfo<span class="op">$</span>sig))</span>
+<span id="cb6-10"><a href="#cb6-10"></a><span class="co">#&gt;  [1] &quot;2001xlyr&quot;   &quot;2001xryl&quot;   &quot;2301xl&quot;     &quot;2311ylxl&quot;   &quot;2311yrxr&quot;  </span></span>
+<span id="cb6-11"><a href="#cb6-11"></a><span class="co">#&gt;  [6] &quot;2401yryl&quot;   &quot;2401yryr&quot;   &quot;2402yryl&quot;   &quot;3001&quot;       &quot;5201xlyryr&quot;</span></span>
+<span id="cb6-12"><a href="#cb6-12"></a><span class="co">#&gt; [11] &quot;5401ylyr&quot;   &quot;5401yryl&quot;   &quot;6201yrxl&quot;   &quot;6222xlyr&quot;   &quot;6302ylzl&quot;  </span></span>
+<span id="cb6-13"><a href="#cb6-13"></a><span class="co">#&gt; [16] &quot;7011yl&quot;     &quot;8201ylylxr&quot; &quot;8202ylylxr&quot;</span></span>
+<span id="cb6-14"><a href="#cb6-14"></a>  </span>
+<span id="cb6-15"><a href="#cb6-15"></a>  <span class="co"># The estimated FDP</span></span>
+<span id="cb6-16"><a href="#cb6-16"></a>  (sigInfo<span class="op">$</span>estFDP)</span>
+<span id="cb6-17"><a href="#cb6-17"></a><span class="co">#&gt; [1] 0.1666667</span></span>
+<span id="cb6-18"><a href="#cb6-18"></a>  </span>
+<span id="cb6-19"><a href="#cb6-19"></a>  <span class="co"># The estimated change-point location (ratio)</span></span>
+<span id="cb6-20"><a href="#cb6-20"></a>  (sigInfo<span class="op">$</span>cps)</span>
+<span id="cb6-21"><a href="#cb6-21"></a><span class="co">#&gt;   2001xlyr   2001xryl     2301xl   2311ylxl   2311yrxr   2401yryl   2401yryr </span></span>
+<span id="cb6-22"><a href="#cb6-22"></a><span class="co">#&gt;  0.4166667  0.5833333  0.4166667  0.4166667  0.2500000  0.4166667  0.4166667 </span></span>
+<span id="cb6-23"><a href="#cb6-23"></a><span class="co">#&gt;   2402yryl       3001 5201xlyryr   5401ylyr   5401yryl   6201yrxl   6222xlyr </span></span>
+<span id="cb6-24"><a href="#cb6-24"></a><span class="co">#&gt;  0.4583333  0.2916667  0.5833333  0.2500000  0.5833333  0.4583333  0.2916667 </span></span>
+<span id="cb6-25"><a href="#cb6-25"></a><span class="co">#&gt;   6302ylzl     7011yl 8201ylylxr 8202ylylxr </span></span>
+<span id="cb6-26"><a href="#cb6-26"></a><span class="co">#&gt;  0.2083333  0.2083333  0.2500000  0.2916667</span></span>
+<span id="cb6-27"><a href="#cb6-27"></a>  </span>
+<span id="cb6-28"><a href="#cb6-28"></a>  <span class="co"># The W-statistics</span></span>
+<span id="cb6-29"><a href="#cb6-29"></a>  (sigInfo<span class="op">$</span>W)</span>
+<span id="cb6-30"><a href="#cb6-30"></a><span class="co">#&gt;   2001xlylxl   2001xlylxr     2001xlyr     2001xryl     2001xryr   2002xlylyl </span></span>
+<span id="cb6-31"><a href="#cb6-31"></a><span class="co">#&gt;  0.000000000 -1.651862436  9.295392160 18.894027675  0.985290910  0.000000000 </span></span>
+<span id="cb6-32"><a href="#cb6-32"></a><span class="co">#&gt;   2002xlylyr   2002xlyrxl   2002xlyrxr     2002xryl     2002xryr   2101ylylyl </span></span>
+<span id="cb6-33"><a href="#cb6-33"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000 </span></span>
+<span id="cb6-34"><a href="#cb6-34"></a><span class="co">#&gt;   2101ylylyr   2101ylyrxl   2101ylyrxr   2101yrylzl   2101yrylzr   2101yryrxl </span></span>
+<span id="cb6-35"><a href="#cb6-35"></a><span class="co">#&gt;  0.000000000 -0.906964632  1.710941111  0.000000000 -1.910101134  0.000000000 </span></span>
+<span id="cb6-36"><a href="#cb6-36"></a><span class="co">#&gt;   2101yryrxr   2102ylylyl   2102ylylyr   2102ylyryl   2102ylyryr   2102yrylzl </span></span>
+<span id="cb6-37"><a href="#cb6-37"></a><span class="co">#&gt;  0.000000000  0.000000000 -0.572493680  0.655445444 -1.983817341  0.000000000 </span></span>
+<span id="cb6-38"><a href="#cb6-38"></a><span class="co">#&gt;   2102yrylzr   2102yryrxl   2102yryrxr         2111         2112   2201ylxlyl </span></span>
+<span id="cb6-39"><a href="#cb6-39"></a><span class="co">#&gt;  0.000000000 -0.262117234  0.000000000  0.000000000  0.000000000 -0.973651432 </span></span>
+<span id="cb6-40"><a href="#cb6-40"></a><span class="co">#&gt;   2201ylxlyr   2201ylxryl   2201ylxryr   2201yrxlyl   2201yrxlyr   2201yrxryl </span></span>
+<span id="cb6-41"><a href="#cb6-41"></a><span class="co">#&gt;  0.193479791  0.000000000  0.000000000  1.393111661  0.750898404  1.627394908 </span></span>
+<span id="cb6-42"><a href="#cb6-42"></a><span class="co">#&gt;   2201yrxryr   2202ylylxl   2202ylylxr   2202ylyrxl   2202ylyrxr 2202yrxlylzl </span></span>
+<span id="cb6-43"><a href="#cb6-43"></a><span class="co">#&gt;  0.000000000  0.000000000 -1.315468665 -1.475598911  0.003823196 -5.030521555 </span></span>
+<span id="cb6-44"><a href="#cb6-44"></a><span class="co">#&gt; 2202yrxlylzr   2202yrxlyr     2202yrxr         2211         2212       2301xl </span></span>
+<span id="cb6-45"><a href="#cb6-45"></a><span class="co">#&gt;  0.000000000 -1.574890813 -0.661925025  0.000000000  0.000000000 13.878982931 </span></span>
+<span id="cb6-46"><a href="#cb6-46"></a><span class="co">#&gt;       2301xr       2302xl       2302xr     2311ylxl     2311ylxr     2311yrxl </span></span>
+<span id="cb6-47"><a href="#cb6-47"></a><span class="co">#&gt;  1.272552884  0.000000000  0.000000000  5.289199222  2.435529926  2.801165051 </span></span>
+<span id="cb6-48"><a href="#cb6-48"></a><span class="co">#&gt;     2311yrxr     2312ylxl     2312ylxr       2312yr     2321ylxl     2321ylxr </span></span>
+<span id="cb6-49"><a href="#cb6-49"></a><span class="co">#&gt;  5.712985349  0.000000000  0.000000000  2.757169909  0.952902821  3.984592748 </span></span>
+<span id="cb6-50"><a href="#cb6-50"></a><span class="co">#&gt;       2321yr       2322xl       2322xr         2331       2332yl       2332yr </span></span>
+<span id="cb6-51"><a href="#cb6-51"></a><span class="co">#&gt;  2.352705032 -2.681370503  0.000000000 -1.629809062  0.000000000 -0.085617047 </span></span>
+<span id="cb6-52"><a href="#cb6-52"></a><span class="co">#&gt;     2401ylyl     2401ylyr     2401yryl     2401yryr     2402ylyl     2402ylyr </span></span>
+<span id="cb6-53"><a href="#cb6-53"></a><span class="co">#&gt;  0.000000000  0.390180476  7.708671778  6.435647907  0.000000000  0.000000000 </span></span>
+<span id="cb6-54"><a href="#cb6-54"></a><span class="co">#&gt;     2402yryl     2402yryr         2501         2502   2601ylylyl   2601ylylyr </span></span>
+<span id="cb6-55"><a href="#cb6-55"></a><span class="co">#&gt;  5.735188960  0.000000000 -2.152911305  0.000000000  0.000000000  1.879076541 </span></span>
+<span id="cb6-56"><a href="#cb6-56"></a><span class="co">#&gt;     2601ylyr     2601yrzl     2601yrzr     2602ylzl     2602ylzr     2602yrzl </span></span>
+<span id="cb6-57"><a href="#cb6-57"></a><span class="co">#&gt;  0.000000000  0.000000000  2.925083459 -0.059478945  1.988050519  0.320874752 </span></span>
+<span id="cb6-58"><a href="#cb6-58"></a><span class="co">#&gt;     2602yrzr         2612         2702         3001     3002ylyl     3002ylyr </span></span>
+<span id="cb6-59"><a href="#cb6-59"></a><span class="co">#&gt; -1.964061006 -0.869878702  0.000000000  5.878375338  0.000000000  0.000000000 </span></span>
+<span id="cb6-60"><a href="#cb6-60"></a><span class="co">#&gt;     3002yrxl     3002yrxr     4001ylyl     4001ylyr       4001yr       4002yl </span></span>
+<span id="cb6-61"><a href="#cb6-61"></a><span class="co">#&gt;  0.000000000 -5.721273958  0.000000000 -2.529370556 -0.447716392 -1.731287489 </span></span>
+<span id="cb6-62"><a href="#cb6-62"></a><span class="co">#&gt;       4002yr     4011ylyl     4011ylyr     4011yryl     4011yryr     4012ylyl </span></span>
+<span id="cb6-63"><a href="#cb6-63"></a><span class="co">#&gt;  0.480282174  0.000000000  0.000000000 -4.522147406  0.000000000 -8.862978604 </span></span>
+<span id="cb6-64"><a href="#cb6-64"></a><span class="co">#&gt;     4012ylyr     4012yryl     4012yryr         4021         4022         4101 </span></span>
+<span id="cb6-65"><a href="#cb6-65"></a><span class="co">#&gt;  0.859205813  0.000000000 -4.040943665  0.000000000  3.337826112  2.326768378 </span></span>
+<span id="cb6-66"><a href="#cb6-66"></a><span class="co">#&gt;         4102         4111       4112yl       4112yr         4201         4202 </span></span>
+<span id="cb6-67"><a href="#cb6-67"></a><span class="co">#&gt; -2.950763901  0.000000000  0.000000000  3.214819334  1.318280567  2.952094830 </span></span>
+<span id="cb6-68"><a href="#cb6-68"></a><span class="co">#&gt;     5001ylyl     5001ylyr     5001yryl     5001yryr     5002ylyl     5002ylyr </span></span>
+<span id="cb6-69"><a href="#cb6-69"></a><span class="co">#&gt;  2.655853790  1.222904674  0.261427845  0.676284239  0.517298833  0.000000000 </span></span>
+<span id="cb6-70"><a href="#cb6-70"></a><span class="co">#&gt;     5002yrxl     5002yrxr       5011yl       5011yr       5012yl       5012yr </span></span>
+<span id="cb6-71"><a href="#cb6-71"></a><span class="co">#&gt; -0.971445918 -0.380792332 -3.486139520 -0.323409164 -1.254200835  0.000000000 </span></span>
+<span id="cb6-72"><a href="#cb6-72"></a><span class="co">#&gt;     5021ylxl     5021ylxr     5021yryl     5021yryr     5022ylxl     5022ylxr </span></span>
+<span id="cb6-73"><a href="#cb6-73"></a><span class="co">#&gt;  0.000000000 -5.809389066 -1.647330347 -0.545054042 -2.781150204 -0.509487153 </span></span>
+<span id="cb6-74"><a href="#cb6-74"></a><span class="co">#&gt;     5022yryl     5022yryr     5101ylzl     5101ylzr       5101yr       5102yl </span></span>
+<span id="cb6-75"><a href="#cb6-75"></a><span class="co">#&gt;  2.024266192  0.711399667 -0.278932791  0.000000000  1.289338027  0.000000000 </span></span>
+<span id="cb6-76"><a href="#cb6-76"></a><span class="co">#&gt;       5102yr   5201xlylxl   5201xlylxr   5201xlyryl   5201xlyryr     5201xryl </span></span>
+<span id="cb6-77"><a href="#cb6-77"></a><span class="co">#&gt;  0.000000000  0.000000000  4.800534066 -4.648573010  5.986170599  0.000000000 </span></span>
+<span id="cb6-78"><a href="#cb6-78"></a><span class="co">#&gt;     5201xryr     5202ylxl     5202ylxr     5202yrxl     5202yrxr       5301yl </span></span>
+<span id="cb6-79"><a href="#cb6-79"></a><span class="co">#&gt;  2.907876700 -0.770913268  2.135152736  0.573342334 -0.370754141  0.000000000 </span></span>
+<span id="cb6-80"><a href="#cb6-80"></a><span class="co">#&gt;       5301yr         5302     5401ylyl     5401ylyr     5401yryl     5401yryr </span></span>
+<span id="cb6-81"><a href="#cb6-81"></a><span class="co">#&gt;  0.000000000  2.469441755  0.000000000  7.606311609  7.200571121  0.000000000 </span></span>
+<span id="cb6-82"><a href="#cb6-82"></a><span class="co">#&gt;     5402ylyl     5402ylyr     5402yryl     5402yryr   6001xlylxl   6001xlylxr </span></span>
+<span id="cb6-83"><a href="#cb6-83"></a><span class="co">#&gt;  0.000000000 -1.276108302  1.365882987  0.000000000  0.000000000  0.000000000 </span></span>
+<span id="cb6-84"><a href="#cb6-84"></a><span class="co">#&gt;   6001xlyrxl   6001xlyrxr   6001xrylyl   6001xrylyr   6001xryrxl   6001xryrxr </span></span>
+<span id="cb6-85"><a href="#cb6-85"></a><span class="co">#&gt;  0.000000000  0.000000000  1.880522007  0.000000000  0.000000000  0.000000000 </span></span>
+<span id="cb6-86"><a href="#cb6-86"></a><span class="co">#&gt;   6002xlylyl   6002xlylyr     6002xlyr     6002xryl     6002xryr     6101ylxl </span></span>
+<span id="cb6-87"><a href="#cb6-87"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000 -2.558807915  0.000000000  0.000000000 </span></span>
+<span id="cb6-88"><a href="#cb6-88"></a><span class="co">#&gt;     6101ylxr     6101yrxl     6101yrxr     6102ylxl     6102ylxr       6102yr </span></span>
+<span id="cb6-89"><a href="#cb6-89"></a><span class="co">#&gt;  0.000000000  1.224338337  0.000000000  0.000000000 -2.108110970  0.000000000 </span></span>
+<span id="cb6-90"><a href="#cb6-90"></a><span class="co">#&gt;   6201ylylxl   6201ylylxr     6201ylyr     6201yrxl     6201yrxr       6202xl </span></span>
+<span id="cb6-91"><a href="#cb6-91"></a><span class="co">#&gt;  3.853780494 -0.220374255  0.000000000  5.811522191  3.319720553 -3.249153747 </span></span>
+<span id="cb6-92"><a href="#cb6-92"></a><span class="co">#&gt;       6202xr       6211yl       6211yr     6212ylxl     6212ylxr     6212yrxl </span></span>
+<span id="cb6-93"><a href="#cb6-93"></a><span class="co">#&gt;  0.014968603  0.000000000  0.000000000 -0.378841174  0.000000000  0.000000000 </span></span>
+<span id="cb6-94"><a href="#cb6-94"></a><span class="co">#&gt;     6212yrxr       6221yl       6221yr     6222xlyl     6222xlyr       6222xr </span></span>
+<span id="cb6-95"><a href="#cb6-95"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000  2.370385303  7.516304343  0.000000000 </span></span>
+<span id="cb6-96"><a href="#cb6-96"></a><span class="co">#&gt; 6301ylzlylxl 6301ylzlylxr   6301ylzlyr     6301ylzr   6301yrzlzl   6301yrzlzr </span></span>
+<span id="cb6-97"><a href="#cb6-97"></a><span class="co">#&gt;  0.000000000  2.336046911  0.000000000  0.000000000  0.000000000 -2.248377665 </span></span>
+<span id="cb6-98"><a href="#cb6-98"></a><span class="co">#&gt;     6301yrzr     6302ylzl     6302ylzr     6302yrzl     6302yrzr       6401yl </span></span>
+<span id="cb6-99"><a href="#cb6-99"></a><span class="co">#&gt;  0.000000000 10.011564717 -0.554388020  1.509220727  0.000000000  0.000000000 </span></span>
+<span id="cb6-100"><a href="#cb6-100"></a><span class="co">#&gt;       6401yr         6402       7001yl       7001yr       7002yl       7002yr </span></span>
+<span id="cb6-101"><a href="#cb6-101"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000 -2.962067584  0.000000000 -0.954114636 </span></span>
+<span id="cb6-102"><a href="#cb6-102"></a><span class="co">#&gt;       7011yl       7011yr         7012         7021         7022       7101yl </span></span>
+<span id="cb6-103"><a href="#cb6-103"></a><span class="co">#&gt;  6.079795845  0.734379350  0.000000000  0.000000000 -2.845114292  0.000000000 </span></span>
+<span id="cb6-104"><a href="#cb6-104"></a><span class="co">#&gt;       7101yr       7102yl       7102yr         8101         8102     8111ylxl </span></span>
+<span id="cb6-105"><a href="#cb6-105"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000 </span></span>
+<span id="cb6-106"><a href="#cb6-106"></a><span class="co">#&gt;     8111ylxr     8111yryl     8111yryr     8112ylxl     8112ylxr     8112yrxl </span></span>
+<span id="cb6-107"><a href="#cb6-107"></a><span class="co">#&gt;  2.368526851  0.000000000  0.624419465  0.000000000  3.239541956 -0.411500735 </span></span>
+<span id="cb6-108"><a href="#cb6-108"></a><span class="co">#&gt;     8112yrxr       8121xl       8121xr         8122   8201ylylxl   8201ylylxr </span></span>
+<span id="cb6-109"><a href="#cb6-109"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000  0.000000000 -2.371611512  7.519306846 </span></span>
+<span id="cb6-110"><a href="#cb6-110"></a><span class="co">#&gt;   8201ylyrxl   8201ylyrxr   8201yrylxl   8201yrylxr   8201yryrxl   8201yryrxr </span></span>
+<span id="cb6-111"><a href="#cb6-111"></a><span class="co">#&gt;  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000  0.000000000 </span></span>
+<span id="cb6-112"><a href="#cb6-112"></a><span class="co">#&gt;   8202ylylxl   8202ylylxr   8202ylyrxl   8202ylyrxr   8202yrylxl   8202yrylxr </span></span>
+<span id="cb6-113"><a href="#cb6-113"></a><span class="co">#&gt;  0.000000000  5.167214588  0.000000000 -4.838882755  0.000000000  0.000000000 </span></span>
+<span id="cb6-114"><a href="#cb6-114"></a><span class="co">#&gt;   8202yryryl   8202yryryr         8211         8212     8301ylyl     8301ylyr </span></span>
+<span id="cb6-115"><a href="#cb6-115"></a><span class="co">#&gt;  1.570080645  0.000000000  0.000000000  0.000000000  3.362565301  3.027289206 </span></span>
+<span id="cb6-116"><a href="#cb6-116"></a><span class="co">#&gt;     8301yryl     8301yryr     8302ylxl     8302ylxr     8302yryl     8302yryr </span></span>
+<span id="cb6-117"><a href="#cb6-117"></a><span class="co">#&gt;  0.000000000 -3.277770324  2.152276905 -0.254255148  0.000000000  0.000000000</span></span></code></pre></div>
+<div id="refs" class="references">
+<div id="ref-Benjamini1995">
+<p>Benjamini, Yoav, and Yosef Hochberg. 1995. “Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.” <em>Journal of the Royal Statistical Society: Series B (Methodological)</em> 57 (1): 289–300. <a href="https://doi.org/10.1111/j.2517-6161.1995.tb02031.x">https://doi.org/10.1111/j.2517-6161.1995.tb02031.x</a>.</p>
+</div>
+<div id="ref-lindquist2007">
+<p>Lindquist, Martin A., Christian Waugh, and Tor D. Wager. 2007. “Modeling State-Related fMRI Activity Using Change-Point Theory.” <em>NeuroImage</em> 35 (3): 1125–41. <a href="https://doi.org/10.1016/j.neuroimage.2007.01.004">https://doi.org/10.1016/j.neuroimage.2007.01.004</a>.</p>
+</div>
+<div id="ref-WenWangZouWang2021">
+<p>Wen, Mengtao, Guanghui Wang, Changliang Zou, and Zhaojun Wang. 2021. “Activation Discovery with FDR Control: Application to fMRI Data.”</p>
+</div>
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
