@@ -2,9 +2,7 @@
 
 A R package for change-point testing with FDR control in large-scale data streams
 
-Please refer to our paper:
-Activation Discovery with FDR Control: Application to fMRI data
-by Mengtao Wen, Guanghui Wang, Changliang Zou and Zhaojun Wang
+Please refer to our paper: *Activation Discovery with FDR Control: Application to fMRI Data* by Mengtao Wen, Guanghui Wang, Changliang Zou and Zhaojun Wang
 
 ## Installation
 Before installing this package, the dependence packages "glmnet", "POET", "CovTools", "simex", "knitr", and "rmarkdown" need installing, which can be fulfilled by the R command:
